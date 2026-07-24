@@ -24,11 +24,14 @@ function initDb() {
     return globalForDb.__rayviaDb;
   }
 
+  const isVercel = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_ENV);
+
   if (isRealPgUrl) {
     const pool =
       globalForDb.__rayviaPgPool ??
       new Pool({
         connectionString: databaseUrl,
+        ssl: databaseUrl?.includes("sslmode=") || isVercel ? { rejectUnauthorized: false } : undefined,
       });
 
     if (process.env.NODE_ENV !== "production") {
@@ -39,8 +42,7 @@ function initDb() {
     globalForDb.__rayviaDb = dbInstance;
     return dbInstance;
   } else {
-    // In Vercel serverless environment, local filesystem is read-only. Use in-memory PGlite.
-    const isVercel = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_ENV);
+    // In Vercel serverless environment without DATABASE_URL, use in-memory PGlite.
     const pgliteTarget = isVercel ? "memory://" : "./local-db";
 
     let pgliteClient: PGlite;
