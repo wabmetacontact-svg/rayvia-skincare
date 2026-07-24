@@ -8,8 +8,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   if (!isAdminRequest(req)) return unauthorized();
-  const rows = await db.select().from(coupons).orderBy(asc(coupons.id));
-  return NextResponse.json({ coupons: rows });
+  try {
+    const rows = await db.select().from(coupons).orderBy(asc(coupons.id));
+    return NextResponse.json({ coupons: rows });
+  } catch (error) {
+    console.error("Admin coupons GET error:", error);
+    return NextResponse.json({ coupons: [] });
+  }
 }
 
 export async function POST(req: Request) {

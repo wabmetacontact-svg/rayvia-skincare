@@ -49,8 +49,13 @@ function payloadToValues(body: Record<string, unknown>) {
 
 export async function GET(req: Request) {
   if (!isAdminRequest(req)) return unauthorized();
-  const rows = await db.select().from(products).orderBy(asc(products.id));
-  return NextResponse.json({ products: rows.map(mapProductRow) });
+  try {
+    const rows = await db.select().from(products).orderBy(asc(products.id));
+    return NextResponse.json({ products: rows.map(mapProductRow) });
+  } catch (error) {
+    console.error("Admin products GET error:", error);
+    return NextResponse.json({ products: [] });
+  }
 }
 
 export async function POST(req: Request) {
