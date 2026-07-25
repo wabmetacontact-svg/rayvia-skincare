@@ -99,6 +99,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
         },
       ];
     });
+
+    // Meta (Facebook) Pixel AddToCart event tracking
+    if (typeof window !== "undefined" && (window as any).fbq) {
+      try {
+        (window as any).fbq("track", "AddToCart", {
+          content_name: product.name,
+          content_ids: [String(product.id || product.slug)],
+          content_type: "product",
+          value: product.price,
+          currency: "INR",
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     setIsOpen(true);
   };
 
