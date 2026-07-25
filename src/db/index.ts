@@ -107,11 +107,17 @@ function initDb() {
               tracking_number VARCHAR(60),
               courier_name VARCHAR(80),
               estimated_delivery TIMESTAMP,
+              razorpay_order_id VARCHAR(64),
+              razorpay_payment_id VARCHAR(64),
               created_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
 
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(64);
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);
+
             CREATE INDEX IF NOT EXISTS orders_order_id_idx ON orders (order_id);
             CREATE INDEX IF NOT EXISTS orders_phone_idx ON orders (phone);
+            CREATE INDEX IF NOT EXISTS orders_razorpay_order_id_idx ON orders (razorpay_order_id);
 
             CREATE TABLE IF NOT EXISTS coupons (
               id SERIAL PRIMARY KEY,

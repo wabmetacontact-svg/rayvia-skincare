@@ -174,6 +174,15 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           amount: total,
           receipt: `rcpt_${Date.now()}`,
+          checkoutData: {
+            ...checkoutData,
+            items,
+            subtotal,
+            discount,
+            shipping,
+            total,
+            couponCode: coupon?.code,
+          },
         }),
       });
 

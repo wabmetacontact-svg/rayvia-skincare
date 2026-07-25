@@ -57,11 +57,14 @@ export const orders = pgTable(
     trackingNumber: varchar("tracking_number", { length: 60 }),
     courierName: varchar("courier_name", { length: 80 }),
     estimatedDelivery: timestamp("estimated_delivery"),
+    razorpayOrderId: varchar("razorpay_order_id", { length: 64 }),
+    razorpayPaymentId: varchar("razorpay_payment_id", { length: 64 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
     orderIdIdx: index("orders_order_id_idx").on(table.orderId),
     phoneIdx: index("orders_phone_idx").on(table.phone),
+    razorpayOrderIdIdx: index("orders_razorpay_order_id_idx").on(table.razorpayOrderId),
   })
 );
 

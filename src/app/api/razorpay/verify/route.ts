@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
 import { db } from "@/db";
 import { orders } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { generateOrderId, generateTrackingNumber, estimatedDeliveryDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,40 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+    }
+
+    let existingOrder: typeof orders.$inferSelect | undefined;
+
+    if (razorpay_order_id) {
+      const found = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.razorpayOrderId, razorpay_order_id))
+        .limit(1);
+
+      if (found.length > 0) {
+        existingOrder = found[0];
+      }
+    }
+
+    if (existingOrder) {
+      const [updated] = await db
+        .update(orders)
+        .set({
+          paymentStatus: "paid",
+          status: "placed",
+          razorpayPaymentId: razorpay_payment_id || existingOrder.razorpayPaymentId,
+        })
+        .where(eq(orders.id, existingOrder.id))
+        .returning();
+
+      return NextResponse.json({
+        success: true,
+        order: {
+          ...updated,
+          estimatedDelivery: updated.estimatedDelivery ? updated.estimatedDelivery.toISOString() : null,
+        },
+      });
     }
 
     const {
@@ -76,6 +111,8 @@ export async function POST(req: Request) {
         trackingNumber,
         courierName: "Delhivery Express",
         estimatedDelivery: estDelivery,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
       })
       .returning();
 
