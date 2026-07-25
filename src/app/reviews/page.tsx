@@ -8,7 +8,7 @@ import { Quote, Star } from "lucide-react";
 export const metadata = {
   title: "Reviews",
   description:
-    "Read real customer reviews for Rayvia's premium tan removal skincare range. Join 50,000+ happy customers who transformed their skin.",
+    "Read real customer reviews for Rayvia's premium tan removal skincare range. Join 10,000+ happy customers who transformed their skin.",
 };
 
 export default function ReviewsPage() {

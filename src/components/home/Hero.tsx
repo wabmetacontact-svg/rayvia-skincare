@@ -84,7 +84,7 @@ export function Hero() {
             </div>
             <div className="h-10 w-px bg-ink/10" />
             <div>
-              <p className="font-heading text-2xl font-bold">50K+</p>
+              <p className="font-heading text-2xl font-bold">10K+</p>
               <p className="text-xs text-muted">Happy customers</p>
             </div>
           </motion.div>
@@ -139,7 +139,7 @@ export function Hero() {
                 <Star key={i} className="h-3.5 w-3.5 fill-gold text-gold" />
               ))}
             </div>
-            <p className="mt-1 text-xs font-semibold">Trusted by 50,000+</p>
+            <p className="mt-1 text-xs font-semibold">Trusted by 10,000+</p>
           </motion.div>
         </motion.div>
       </div>

@@ -30,12 +30,12 @@ const VALUES = [
   {
     icon: Heart,
     title: "Our Community",
-    desc: "Built on real feedback from real customers. Over 50,000 Indians trust Rayvia for their daily skincare ritual.",
+    desc: "Built on real feedback from real customers. Over 10,000 Indians trust Rayvia for their daily skincare ritual.",
   },
 ];
 
 const STATS = [
-  { value: "50K+", label: "Happy Customers" },
+  { value: "10K+", label: "Happy Customers" },
   { value: "4.8★", label: "Average Rating" },
   { value: "3", label: "Flagship Products" },
   { value: "100%", label: "Cruelty-Free" },

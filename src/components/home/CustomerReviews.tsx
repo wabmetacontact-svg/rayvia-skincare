@@ -13,7 +13,7 @@ export function CustomerReviews() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Customer Love"
-          title="Loved by 50,000+ Indians"
+          title="Loved by 10,000+ Indians"
           subtitle="Real reviews from real customers who transformed their skin with Rayvia."
         />
 
