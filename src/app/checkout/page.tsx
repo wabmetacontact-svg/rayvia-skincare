@@ -278,6 +278,28 @@ export default function CheckoutPage() {
       };
 
       const razorpayWindow = new (window as any).Razorpay(options);
+
+      if (orderData.websiteOrderId) {
+        const pollInterval = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/orders/${orderData.websiteOrderId}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.order?.paymentStatus === "paid") {
+                clearInterval(pollInterval);
+                try { razorpayWindow.close(); } catch {}
+                clearCart();
+                router.push(`/order-success?orderId=${orderData.websiteOrderId}`);
+              }
+            }
+          } catch {
+            // ignore polling errors
+          }
+        }, 2500);
+
+        setTimeout(() => clearInterval(pollInterval), 12 * 60 * 1000);
+      }
+
       razorpayWindow.open();
     } catch (error) {
       console.error("Checkout submission error:", error);
