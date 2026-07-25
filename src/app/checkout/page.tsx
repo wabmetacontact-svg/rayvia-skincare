@@ -23,7 +23,6 @@ import {
   Trash2,
   QrCode,
   Smartphone,
-  CheckCircle2,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -82,7 +81,6 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
 
   const [selectedUpiApp, setSelectedUpiApp] = useState("gpay");
-  const [showQrModal, setShowQrModal] = useState(false);
 
   const {
     register,
@@ -99,13 +97,23 @@ export default function CheckoutPage() {
   });
 
   const paymentMethod = watch("paymentMethod");
-  const upiId = watch("upiId");
-  const cardNumber = watch("cardNumber");
-  const cardExpiry = watch("cardExpiry");
-  const cardCvv = watch("cardCvv");
 
   const shipping = subtotal >= SITE.freeShippingAbove || subtotal === 0 ? 0 : 49;
   const total = Math.max(0, subtotal - discount) + shipping;
+
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window !== "undefined" && (window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -131,47 +139,147 @@ export default function CheckoutPage() {
     }
   };
 
-  const onSubmit = async (data: CheckoutForm) => {
-    // Validate UPI ID if UPI method selected without app click
-    if (data.paymentMethod === "upi" && !data.upiId && !selectedUpiApp) {
-      alert("Please select a UPI app or enter a valid UPI ID");
-      return;
-    }
-
+  const processOrderPlacement = async (checkoutData: CheckoutForm) => {
     setPlacing(true);
     try {
-      const res = await fetch("/api/orders", {
+      // 1. Cash on Delivery
+      if (checkoutData.paymentMethod === "cod") {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...checkoutData,
+            items,
+            subtotal,
+            discount,
+            shipping,
+            total,
+            couponCode: coupon?.code,
+          }),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          clearCart();
+          router.push(`/order-success?orderId=${result.order.orderId}`);
+        } else {
+          alert(result.error || "Failed to place order");
+        }
+        return;
+      }
+
+      // 2. Online Payment via Razorpay (UPI / Card)
+      const resOrder = await fetch("/api/razorpay/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
-          items,
-          subtotal,
-          discount,
-          shipping,
-          total,
-          couponCode: coupon?.code,
-          upiId: data.paymentMethod === "upi" ? (data.upiId || `${data.phone}@upi`) : undefined,
-          paymentDetails:
-            data.paymentMethod === "upi"
-              ? { method: "UPI", app: selectedUpiApp, upiId: data.upiId || `${data.phone}@upi` }
-              : data.paymentMethod === "card"
-              ? { method: "Card", cardLast4: data.cardNumber?.slice(-4) || "4242" }
-              : { method: "COD" },
+          amount: total,
+          receipt: `rcpt_${Date.now()}`,
         }),
       });
-      const result = await res.json();
-      if (res.ok && result.success) {
-        clearCart();
-        router.push(`/order-success?orderId=${result.order.orderId}`);
-      } else {
-        alert(result.error || "Failed to place order");
+
+      const orderData = await resOrder.json();
+      if (!resOrder.ok || !orderData.success) {
+        throw new Error(orderData.error || "Failed to create payment gateway order");
       }
-    } catch {
-      alert("Something went wrong. Please try again.");
+
+      // If Razorpay live keys are not configured yet, complete test transaction smoothly
+      if (orderData.isMock) {
+        const resVerify = await fetch("/api/razorpay/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            razorpay_order_id: orderData.id,
+            razorpay_payment_id: `pay_mock_${Date.now()}`,
+            razorpay_signature: "mock_signature",
+            checkoutData: {
+              ...checkoutData,
+              items,
+              subtotal,
+              discount,
+              shipping,
+              total,
+              couponCode: coupon?.code,
+            },
+          }),
+        });
+        const verifyData = await resVerify.json();
+        if (verifyData.success) {
+          clearCart();
+          router.push(`/order-success?orderId=${verifyData.order.orderId}`);
+        } else {
+          alert(verifyData.error || "Order creation failed");
+        }
+        return;
+      }
+
+      // Load Razorpay Checkout SDK
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert("Razorpay SDK failed to load. Please check your internet connection.");
+        return;
+      }
+
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: SITE.name,
+        description: `Order Payment for ${items.length} item(s)`,
+        order_id: orderData.id,
+        prefill: {
+          name: checkoutData.customerName,
+          email: checkoutData.email,
+          contact: checkoutData.phone,
+        },
+        theme: {
+          color: "#D4AF37",
+        },
+        handler: async function (response: any) {
+          try {
+            const resVerify = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                checkoutData: {
+                  ...checkoutData,
+                  items,
+                  subtotal,
+                  discount,
+                  shipping,
+                  total,
+                  couponCode: coupon?.code,
+                },
+              }),
+            });
+            const verifyData = await resVerify.json();
+            if (verifyData.success) {
+              clearCart();
+              router.push(`/order-success?orderId=${verifyData.order.orderId}`);
+            } else {
+              alert(verifyData.error || "Payment verification failed");
+            }
+          } catch (err) {
+            console.error("Payment handler error:", err);
+            alert("Error processing payment. Please contact support.");
+          }
+        },
+      };
+
+      const razorpayWindow = new (window as any).Razorpay(options);
+      razorpayWindow.open();
+    } catch (error) {
+      console.error("Checkout submission error:", error);
+      alert(error instanceof Error ? error.message : "Checkout error");
     } finally {
       setPlacing(false);
     }
+  };
+
+  const onSubmit = (data: CheckoutForm) => {
+    void processOrderPlacement(data);
   };
 
   if (items.length === 0) {
@@ -289,7 +397,7 @@ export default function CheckoutPage() {
                       if (name && phone && email) {
                         setStep(1);
                       } else {
-                        alert("Please fill in all customer details before continuing");
+                        alert("Please fill in customer name, phone number, and email");
                       }
                     }}
                   >
@@ -383,7 +491,7 @@ export default function CheckoutPage() {
                         if (address && city && state && pincode) {
                           setStep(2);
                         } else {
-                          alert("Please fill in all address details before continuing");
+                          alert("Please fill in address, city, state and pincode");
                         }
                       }}
                     >
@@ -407,8 +515,8 @@ export default function CheckoutPage() {
                   
                   <div className="space-y-3">
                     {[
-                      { value: "upi", label: "UPI (Instant 5% Off)", desc: "GPay, PhonePe, Paytm, BHIM & QR Code", icon: Wallet, badge: "Popular" },
-                      { value: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay, Amex", icon: CreditCard },
+                      { value: "upi", label: "Razorpay UPI (Fastest)", desc: "GPay, PhonePe, Paytm, BHIM & QR Code", icon: Wallet, badge: "Popular" },
+                      { value: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay, Amex via Razorpay", icon: CreditCard },
                       { value: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives at doorstep", icon: Banknote },
                     ].map((method) => (
                       <div
@@ -463,7 +571,7 @@ export default function CheckoutPage() {
                       className="space-y-4 rounded-[20px] border border-gold/30 bg-gold/5 p-5"
                     >
                       <p className="text-xs font-bold uppercase tracking-wider text-gold-dark">
-                        Select your UPI App or enter VPA
+                        Instant Razorpay UPI Gateway
                       </p>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         {UPI_APPS.map((app) => (
@@ -496,16 +604,16 @@ export default function CheckoutPage() {
                           id="upiId"
                           {...register("upiId")}
                           placeholder="e.g. yourname@okicici or mobile@upi"
-                          className="mt-1 bg-white"
+                          className="mt-1 bg-white text-sm"
                         />
                       </div>
 
                       <div className="flex items-center justify-between rounded-xl bg-white p-3 border border-ink/10">
                         <div className="flex items-center gap-2">
                           <QrCode className="h-5 w-5 text-gold-dark" />
-                          <span className="text-xs font-semibold">Instant QR Code Payment</span>
+                          <span className="text-xs font-semibold">Instant Scan & Pay via Razorpay</span>
                         </div>
-                        <span className="text-xs text-success font-bold">Fastest</span>
+                        <span className="text-xs text-success font-bold">Safe & Verified</span>
                       </div>
                     </motion.div>
                   )}
@@ -518,7 +626,7 @@ export default function CheckoutPage() {
                       className="space-y-3 rounded-[20px] border border-ink/10 bg-cream p-5"
                     >
                       <p className="text-xs font-bold uppercase tracking-wider text-muted">
-                        Credit / Debit Card Details
+                        Credit / Debit Card via Razorpay
                       </p>
                       <div>
                         <Label htmlFor="cardNumber" className="text-xs">Card Number</Label>
@@ -567,7 +675,7 @@ export default function CheckoutPage() {
 
                   <div className="flex items-center gap-2 rounded-[12px] bg-success/10 px-4 py-3 text-xs font-medium text-success">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
-                    <span>256-bit SSL Encrypted • 100% Safe & Secure Payment</span>
+                    <span>Razorpay 256-bit Encrypted • Direct Bank Settlement</span>
                   </div>
 
                   <div className="flex gap-3 pt-2">
@@ -589,7 +697,7 @@ export default function CheckoutPage() {
                       disabled={placing}
                     >
                       {placing ? (
-                        "Processing Order..."
+                        "Opening Razorpay Gateway..."
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
@@ -728,7 +836,7 @@ export default function CheckoutPage() {
 
               <div className="mt-4 flex items-center justify-center gap-2 rounded-[12px] bg-cream px-4 py-2.5 text-xs text-muted">
                 <ShieldCheck className="h-4 w-4 text-success" />
-                Secure checkout • 100% protected
+                Razorpay Secured • 100% Protected
               </div>
             </div>
           </div>
