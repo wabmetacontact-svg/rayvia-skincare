@@ -29,10 +29,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No image file provided." }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
     const savedUrls: string[] = [];
+    const imgbbKey = process.env.IMGBB_API_KEY;
 
     for (const file of uploadedFiles) {
       // Validate image type
@@ -46,13 +44,44 @@ export async function POST(req: Request) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Clean filename
-      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${safeName}`;
-      const filePath = path.join(uploadDir, filename);
+      // Option 1: If ImgBB API key is configured in env, upload to ImgBB
+      if (imgbbKey) {
+        try {
+          const body = new FormData();
+          body.append("image", buffer.toString("base64"));
+          const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+            method: "POST",
+            body,
+          });
+          const data = await res.json();
+          if (data?.data?.url) {
+            savedUrls.push(data.data.url);
+            continue;
+          }
+        } catch (imgbbErr) {
+          console.warn("ImgBB upload failed, falling back to local/data-url", imgbbErr);
+        }
+      }
 
-      await writeFile(filePath, buffer);
-      savedUrls.push(`/uploads/${filename}`);
+      // Option 2: Try saving to local filesystem (works in local dev & VPS)
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads");
+        await mkdir(uploadDir, { recursive: true });
+
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${safeName}`;
+        const filePath = path.join(uploadDir, filename);
+
+        await writeFile(filePath, buffer);
+        savedUrls.push(`/uploads/${filename}`);
+      } catch (fsErr) {
+        // Option 3: Fallback for Vercel / Serverless read-only filesystem using Data URL
+        console.warn("Serverless read-only filesystem detected, converting file to Data URL", fsErr);
+        const base64 = buffer.toString("base64");
+        const mimeType = file.type || "image/png";
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+        savedUrls.push(dataUrl);
+      }
     }
 
     return NextResponse.json({
@@ -61,9 +90,10 @@ export async function POST(req: Request) {
       urls: savedUrls,
     });
   } catch (error) {
-    console.error("Image upload error:", error);
+    console.error("Image upload handler error:", error);
+    const message = error instanceof Error ? error.message : "Failed to upload image.";
     return NextResponse.json(
-      { error: "Failed to upload image." },
+      { error: message },
       { status: 500 }
     );
   }
