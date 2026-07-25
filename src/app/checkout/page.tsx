@@ -98,7 +98,10 @@ export default function CheckoutPage() {
 
   const paymentMethod = watch("paymentMethod");
 
-  const shipping = subtotal >= SITE.freeShippingAbove || subtotal === 0 ? 0 : 49;
+  const productShippingTotal = items.reduce((sum, i) => sum + Number(i.shippingCharge ?? 0) * i.quantity, 0);
+  const shipping = productShippingTotal > 0
+    ? productShippingTotal
+    : (subtotal >= SITE.freeShippingAbove || subtotal === 0 ? 0 : 49);
   const total = Math.max(0, subtotal - discount) + shipping;
 
   const loadRazorpayScript = (): Promise<boolean> => {

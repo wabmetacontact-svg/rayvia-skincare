@@ -93,6 +93,7 @@ type ProductForm = {
   ingredients: string;
   usage: string;
   faqs: string;
+  shippingCharge: string;
   inStock: boolean;
   featured: boolean;
 };
@@ -122,6 +123,7 @@ const emptyProduct: ProductForm = {
   ingredients: JSON.stringify([{ name: "Niacinamide", desc: "Brightens and supports skin barrier." }], null, 2),
   usage: "Apply on clean skin\nMassage gently\nRinse thoroughly",
   faqs: JSON.stringify([{ q: "Is it suitable for all skin types?", a: "Yes, patch test recommended." }], null, 2),
+  shippingCharge: "0",
   inStock: true,
   featured: false,
 };
@@ -168,6 +170,7 @@ function productToForm(product: Product): ProductForm {
     ingredients: JSON.stringify(product.ingredients, null, 2),
     usage: product.usage.join("\n"),
     faqs: JSON.stringify(product.faqs, null, 2),
+    shippingCharge: String(product.shippingCharge ?? 0),
     inStock: product.inStock,
     featured: product.featured,
   };
@@ -690,10 +693,11 @@ export function AdminDashboard() {
                 <Field label="Slug"><Input value={productForm.slug} onChange={(e) => setProductForm({ ...productForm, slug: e.target.value })} /></Field>
                 <Field label="Tagline"><Input value={productForm.tagline} onChange={(e) => setProductForm({ ...productForm, tagline: e.target.value })} /></Field>
                 <Field label="Description"><Textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} /></Field>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="Price"><Input value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} /></Field>
-                  <Field label="MRP"><Input value={productForm.mrp} onChange={(e) => setProductForm({ ...productForm, mrp: e.target.value })} /></Field>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Field label="Price (₹)"><Input value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} /></Field>
+                  <Field label="MRP (₹)"><Input value={productForm.mrp} onChange={(e) => setProductForm({ ...productForm, mrp: e.target.value })} /></Field>
                   <Field label="Size"><Input value={productForm.size} onChange={(e) => setProductForm({ ...productForm, size: e.target.value })} /></Field>
+                  <Field label="Shipping Fee (₹)"><Input value={productForm.shippingCharge} onChange={(e) => setProductForm({ ...productForm, shippingCharge: e.target.value })} placeholder="0 for Free" /></Field>
                 </div>
 
                 {/* Main Image Upload */}
@@ -828,6 +832,9 @@ export function AdminDashboard() {
                         <h3 className="font-heading text-lg font-bold">{p.name}</h3>
                         {p.featured && <Badge variant="gold">Featured</Badge>}
                         <Badge variant={p.inStock ? "success" : "outline"}>{p.inStock ? "In Stock" : "Hidden"}</Badge>
+                        {Boolean(p.shippingCharge && Number(p.shippingCharge) > 0) && (
+                          <Badge variant="outline">Shipping: ₹{p.shippingCharge}</Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted">/{p.slug}</p>
                       <p className="mt-1 text-sm text-ink-soft">{p.tagline}</p>

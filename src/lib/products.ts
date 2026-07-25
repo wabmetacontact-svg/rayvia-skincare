@@ -17,6 +17,7 @@ export type Product = {
   inStock: boolean;
   featured: boolean;
   size: string;
+  shippingCharge?: number;
 };
 
 export const products: Product[] = [

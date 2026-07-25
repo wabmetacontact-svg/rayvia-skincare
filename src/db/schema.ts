@@ -28,6 +28,7 @@ export const products = pgTable("products", {
   ingredients: jsonb("ingredients").notNull().default("[]"),
   usage: jsonb("usage").notNull().default("[]"),
   faqs: jsonb("faqs").notNull().default("[]"),
+  shippingCharge: numeric("shipping_charge", { precision: 10, scale: 2 }).notNull().default("0"),
   inStock: boolean("in_stock").notNull().default(true),
   featured: boolean("featured").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),

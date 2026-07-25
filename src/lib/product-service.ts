@@ -58,6 +58,7 @@ export function mapProductRow(row: ProductRow): Product {
     inStock: row.inStock,
     featured: row.featured,
     size: row.size ?? fallback?.size ?? "100g",
+    shippingCharge: Number(row.shippingCharge ?? fallback?.shippingCharge ?? 0),
   };
 }
 

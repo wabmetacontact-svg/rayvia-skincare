@@ -18,6 +18,7 @@ export type CartItem = {
   mrp: number;
   image: string;
   size: string;
+  shippingCharge?: number;
   quantity: number;
 };
 
@@ -95,6 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           mrp: product.mrp,
           image: product.image,
           size: product.size,
+          shippingCharge: product.shippingCharge ?? 0,
           quantity,
         },
       ];

@@ -42,6 +42,7 @@ function payloadToValues(body: Record<string, unknown>) {
     ingredients: parseJson(body.ingredients, []) as unknown,
     usage: parseLines(body.usage) as unknown,
     faqs: parseJson(body.faqs, []) as unknown,
+    shippingCharge: String(Number(body.shippingCharge ?? 0)),
     inStock: Boolean(body.inStock),
     featured: Boolean(body.featured),
   };

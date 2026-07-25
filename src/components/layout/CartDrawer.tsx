@@ -33,6 +33,11 @@ export function CartDrawer() {
   const remainingForFreeShip = Math.max(0, SITE.freeShippingAbove - subtotal);
   const freeShipProgress = Math.min(100, (subtotal / SITE.freeShippingAbove) * 100);
 
+  const productShippingTotal = items.reduce((sum, i) => sum + Number(i.shippingCharge ?? 0) * i.quantity, 0);
+  const shippingFee = productShippingTotal > 0
+    ? productShippingTotal
+    : (remainingForFreeShip > 0 && subtotal > 0 ? 49 : 0);
+
   const handleApplyCoupon = async () => {
     if (!code.trim()) return;
     setLoading(true);
@@ -252,15 +257,15 @@ export function CartDrawer() {
                 )}
                 <div className="flex justify-between text-ink-soft">
                   <span>Shipping</span>
-                  <span className={remainingForFreeShip > 0 ? "" : "text-success"}>
-                    {remainingForFreeShip > 0 ? formatINR(49) : "FREE"}
+                  <span className={shippingFee === 0 ? "text-success" : ""}>
+                    {shippingFee === 0 ? "FREE" : formatINR(shippingFee)}
                   </span>
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-ink/10 pt-3">
                 <span className="font-heading text-base font-bold">Total</span>
                 <span className="font-heading text-xl font-bold">
-                  {formatINR(total + (remainingForFreeShip > 0 ? 49 : 0))}
+                  {formatINR(total + shippingFee)}
                 </span>
               </div>
               <Button asChild size="lg" className="mt-4 w-full" variant="gold">

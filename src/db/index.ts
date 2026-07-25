@@ -80,10 +80,13 @@ function initDb() {
               ingredients JSONB NOT NULL DEFAULT '[]',
               usage JSONB NOT NULL DEFAULT '[]',
               faqs JSONB NOT NULL DEFAULT '[]',
+              shipping_charge NUMERIC(10, 2) NOT NULL DEFAULT '0',
               in_stock BOOLEAN NOT NULL DEFAULT true,
               featured BOOLEAN NOT NULL DEFAULT false,
               created_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
+
+            ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_charge NUMERIC(10, 2) NOT NULL DEFAULT '0';
 
             CREATE TABLE IF NOT EXISTS orders (
               id SERIAL PRIMARY KEY,
