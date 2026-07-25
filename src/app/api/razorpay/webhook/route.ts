@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
-import { db } from "@/db";
+import { db, ensureDbInitialized } from "@/db";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    await ensureDbInitialized();
     const rawBody = await req.text();
     const signature = req.headers.get("x-razorpay-signature");
 

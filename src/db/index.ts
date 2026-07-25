@@ -214,3 +214,13 @@ function initDb() {
 }
 
 export const db = initDb();
+
+export async function ensureDbInitialized() {
+  if (globalForDb.__rayviaDbInitPromise) {
+    try {
+      await globalForDb.__rayviaDbInitPromise;
+    } catch (err) {
+      console.warn("DB init wait error:", err);
+    }
+  }
+}

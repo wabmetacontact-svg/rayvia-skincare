@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
-import { db } from "@/db";
+import { db, ensureDbInitialized } from "@/db";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateOrderId, generateTrackingNumber, estimatedDeliveryDate } from "@/lib/utils";
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    await ensureDbInitialized();
     const body = await req.json();
     const {
       razorpay_order_id,

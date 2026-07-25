@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { db } from "@/db";
+import { db, ensureDbInitialized } from "@/db";
 import { orders } from "@/db/schema";
 import { generateOrderId, generateTrackingNumber, estimatedDeliveryDate } from "@/lib/utils";
 
@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    await ensureDbInitialized();
+
     const { amount, currency = "INR", receipt, checkoutData } = await req.json();
 
     const keyId =
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
     const isMock = keyId === "rzp_test_demo12345" || !process.env.RAZORPAY_KEY_SECRET;
 
     let razorpayOrderId = `order_mock_${Date.now()}`;
-    let orderAmount = Math.round(Number(amount) * 100);
+    let orderAmount = Math.round(Number(amount || 0) * 100);
 
     if (!isMock) {
       const instance = new Razorpay({
@@ -43,46 +45,50 @@ export async function POST(req: Request) {
     const estDelivery = estimatedDeliveryDate(5);
 
     if (checkoutData) {
-      const {
-        customerName,
-        phone,
-        email,
-        address,
-        city,
-        state,
-        pincode,
-        items,
-        subtotal,
-        discount,
-        shipping,
-        total,
-        couponCode,
-        paymentMethod = "upi",
-      } = checkoutData;
+      try {
+        const {
+          customerName,
+          phone,
+          email,
+          address,
+          city,
+          state,
+          pincode,
+          items,
+          subtotal,
+          discount,
+          shipping,
+          total,
+          couponCode,
+          paymentMethod = "upi",
+        } = checkoutData;
 
-      await db.insert(orders).values({
-        orderId: websiteOrderId,
-        customerName: customerName || "Customer",
-        phone: phone || "9999999999",
-        email: email || "customer@example.com",
-        address: address || "Delivery Address",
-        city: city || "City",
-        state: state || "State",
-        pincode: pincode || "110001",
-        items: (items || []) as any,
-        subtotal: String(subtotal || 0),
-        discount: String(discount ?? 0),
-        shipping: String(shipping ?? 0),
-        total: String(total || amount || 0),
-        couponCode: couponCode || null,
-        paymentMethod: paymentMethod === "cod" ? "cod" : `razorpay_${paymentMethod}`,
-        paymentStatus: "pending",
-        status: "pending_payment",
-        trackingNumber,
-        courierName: "Delhivery Express",
-        estimatedDelivery: estDelivery,
-        razorpayOrderId,
-      });
+        await db.insert(orders).values({
+          orderId: websiteOrderId,
+          customerName: customerName || "Customer",
+          phone: phone || "9999999999",
+          email: email || "customer@example.com",
+          address: address || "Delivery Address",
+          city: city || "City",
+          state: state || "State",
+          pincode: pincode || "110001",
+          items: (items || []) as any,
+          subtotal: String(subtotal || 0),
+          discount: String(discount ?? 0),
+          shipping: String(shipping ?? 0),
+          total: String(total || amount || 0),
+          couponCode: couponCode || null,
+          paymentMethod: paymentMethod === "cod" ? "cod" : `razorpay_${paymentMethod}`,
+          paymentStatus: "pending",
+          status: "pending_payment",
+          trackingNumber,
+          courierName: "Delhivery Express",
+          estimatedDelivery: estDelivery,
+          razorpayOrderId,
+        });
+      } catch (dbErr) {
+        console.error("Warning: Pre-creating pending order in DB failed:", dbErr);
+      }
     }
 
     return NextResponse.json({
@@ -94,10 +100,11 @@ export async function POST(req: Request) {
       keyId,
       isMock,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Razorpay order creation error:", error);
+    const detail = error?.error?.description || error?.message || "Failed to create Razorpay payment order.";
     return NextResponse.json(
-      { error: "Failed to create Razorpay payment order." },
+      { error: detail, details: error },
       { status: 500 }
     );
   }
