@@ -56,7 +56,26 @@ function OrderSuccessContent() {
     fetch(`/api/orders/${orderId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.order) setOrder(data.order);
+        if (data.order) {
+          setOrder(data.order);
+
+          // Meta Pixel Purchase Event
+          if (typeof window !== "undefined" && (window as any).fbq) {
+            try {
+              (window as any).fbq("track", "Purchase", {
+                value: Number(data.order.total),
+                currency: "INR",
+                content_type: "product",
+                contents: (data.order.items || []).map((item: any) => ({
+                  id: item.id || item.slug,
+                  quantity: item.quantity,
+                })),
+              });
+            } catch {
+              // ignore
+            }
+          }
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
