@@ -1,4 +1,5 @@
 import { Hero } from "@/components/home/Hero";
+import { ProductsShowcase } from "@/components/home/ProductsShowcase";
 import { Benefits } from "@/components/home/Benefits";
 import { BeforeAfter } from "@/components/home/BeforeAfter";
 import { Ingredients } from "@/components/home/Ingredients";
@@ -24,6 +25,7 @@ export default async function HomePage() {
           <TrustBadges />
         </div>
       </div>
+      <ProductsShowcase products={products} />
       <Benefits />
       <BeforeAfter />
       {featured && <FeaturedProduct product={featured} />}
