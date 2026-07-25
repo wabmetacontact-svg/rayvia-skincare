@@ -60,9 +60,9 @@ export function Navbar() {
           </button>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 lg:order-none order-1">
-            <span className="font-heading text-2xl font-bold tracking-tight">
-              Rayvia
+          <Link href="/" className="flex items-center gap-1.5 lg:order-none order-1">
+            <span className="font-heading text-2xl font-bold tracking-tight text-ink">
+              Rayvia<span className="text-gold-dark">Beauty</span>
             </span>
             <span className="hidden sm:inline-block h-1.5 w-1.5 rounded-full bg-gold" />
           </Link>
@@ -129,7 +129,9 @@ export function Navbar() {
               className="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-cream p-6 lg:hidden"
             >
               <div className="flex items-center justify-between">
-                <span className="font-heading text-xl font-bold">Menu</span>
+                <span className="font-heading text-xl font-bold text-ink">
+                  Rayvia<span className="text-gold-dark">Beauty</span>
+                </span>
                 <button
                   onClick={() => setMobileOpen(false)}
                   className="rounded-full p-2 hover:bg-ink/5"

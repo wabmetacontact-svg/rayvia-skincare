@@ -1,10 +1,10 @@
 export const SITE = {
-  name: "Rayvia",
+  name: "Rayvia Beauty",
   tagline: "Premium Tan Removal Skincare",
   description:
-    "Rayvia is a premium skincare brand specializing in tan removal. Discover clinically-inspired, dermatologically-tested de-tan products crafted for modern Indian skin.",
-  url: "https://rayvia.in",
-  email: "care@rayvia.in",
+    "Rayvia Beauty is a premium skincare brand specializing in tan removal. Discover clinically-inspired, dermatologically-tested de-tan products crafted for modern Indian skin.",
+  url: "https://rayviabeauty.in",
+  email: "care@rayviabeauty.in",
   phone: "+91 98765 43210",
   address: "Rayvia Beauty Pvt. Ltd., Mumbai, Maharashtra, India",
   instagram: "https://instagram.com",
@@ -46,7 +46,7 @@ export const FOOTER_LINKS = {
 
 export const FAQS = [
   {
-    q: "Are Rayvia products suitable for all skin types?",
+    q: "Are Rayvia Beauty products suitable for all skin types?",
     a: "Yes. Our formulations are dermatologically tested and designed to suit all skin types — oily, dry, combination and sensitive. We recommend a patch test before first use.",
   },
   {
@@ -55,7 +55,7 @@ export const FAQS = [
   },
   {
     q: "Are the products safe for men?",
-    a: "Absolutely. Rayvia is a unisex brand. Our products work equally well on men's skin, which tends to be thicker and more prone to sun damage.",
+    a: "Absolutely. Rayvia Beauty is a unisex brand. Our products work equally well on men's skin, which tends to be thicker and more prone to sun damage.",
   },
   {
     q: "What is the shipping policy?",
@@ -66,8 +66,8 @@ export const FAQS = [
     a: "We offer a 7-day return policy on unopened products. If your product arrives damaged, contact us within 48 hours for a free replacement.",
   },
   {
-    q: "Are Rayvia products cruelty-free?",
-    a: "Yes. All Rayvia products are 100% cruelty-free, vegan-friendly and never tested on animals.",
+    q: "Are Rayvia Beauty products cruelty-free?",
+    a: "Yes. All Rayvia Beauty products are 100% cruelty-free, vegan-friendly and never tested on animals.",
   },
   {
     q: "How do I track my order?",

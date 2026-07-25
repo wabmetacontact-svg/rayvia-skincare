@@ -33,8 +33,10 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand */}
           <div className="col-span-2 lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="font-heading text-2xl font-bold">Rayvia</span>
+            <Link href="/" className="flex items-center gap-1.5">
+              <span className="font-heading text-2xl font-bold text-white">
+                Rayvia<span className="text-gold">Beauty</span>
+              </span>
               <span className="h-1.5 w-1.5 rounded-full bg-gold" />
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-cream/60">
