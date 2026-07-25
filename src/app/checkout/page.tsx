@@ -21,36 +21,45 @@ import {
   Minus,
   Plus,
   Trash2,
+  QrCode,
+  Smartphone,
+  CheckCircle2,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { formatINR, discountPercent } from "@/lib/utils";
+import { formatINR } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, "Name is required"),
-  phone: z.string().min(10, "Enter a valid phone number").max(15),
-  email: z.string().email("Enter a valid email"),
+  phone: z.string().min(10, "Enter a valid 10-digit phone number").max(15),
+  email: z.string().email("Enter a valid email address"),
   address: z.string().min(5, "Address is required"),
   city: z.string().min(2, "City is required"),
   state: z.string().min(2, "State is required"),
-  pincode: z.string().min(6, "Enter a valid pincode").max(6),
+  pincode: z.string().min(6, "Enter a valid 6-digit pincode").max(6),
   paymentMethod: z.enum(["cod", "upi", "card"]),
+  upiId: z.string().optional(),
+  upiApp: z.string().optional(),
+  cardNumber: z.string().optional(),
+  cardExpiry: z.string().optional(),
+  cardCvv: z.string().optional(),
+  cardName: z.string().optional(),
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 const STEPS = ["Details", "Address", "Payment"] as const;
+
+const UPI_APPS = [
+  { id: "gpay", name: "Google Pay", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { id: "phonepe", name: "PhonePe", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { id: "paytm", name: "Paytm", color: "bg-sky-50 text-sky-700 border-sky-200" },
+  { id: "bhim", name: "BHIM / Other", color: "bg-amber-50 text-amber-700 border-amber-200" },
+];
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -72,6 +81,9 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
 
+  const [selectedUpiApp, setSelectedUpiApp] = useState("gpay");
+  const [showQrModal, setShowQrModal] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -80,8 +92,17 @@ export default function CheckoutPage() {
     watch,
   } = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: { paymentMethod: "cod" },
+    defaultValues: {
+      paymentMethod: "upi",
+      upiApp: "gpay",
+    },
   });
+
+  const paymentMethod = watch("paymentMethod");
+  const upiId = watch("upiId");
+  const cardNumber = watch("cardNumber");
+  const cardExpiry = watch("cardExpiry");
+  const cardCvv = watch("cardCvv");
 
   const shipping = subtotal >= SITE.freeShippingAbove || subtotal === 0 ? 0 : 49;
   const total = Math.max(0, subtotal - discount) + shipping;
@@ -111,6 +132,12 @@ export default function CheckoutPage() {
   };
 
   const onSubmit = async (data: CheckoutForm) => {
+    // Validate UPI ID if UPI method selected without app click
+    if (data.paymentMethod === "upi" && !data.upiId && !selectedUpiApp) {
+      alert("Please select a UPI app or enter a valid UPI ID");
+      return;
+    }
+
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
@@ -124,6 +151,13 @@ export default function CheckoutPage() {
           shipping,
           total,
           couponCode: coupon?.code,
+          upiId: data.paymentMethod === "upi" ? (data.upiId || `${data.phone}@upi`) : undefined,
+          paymentDetails:
+            data.paymentMethod === "upi"
+              ? { method: "UPI", app: selectedUpiApp, upiId: data.upiId || `${data.phone}@upi` }
+              : data.paymentMethod === "card"
+              ? { method: "Card", cardLast4: data.cardNumber?.slice(-4) || "4242" }
+              : { method: "COD" },
         }),
       });
       const result = await res.json();
@@ -252,7 +286,11 @@ export default function CheckoutPage() {
                       const name = watch("customerName");
                       const phone = watch("phone");
                       const email = watch("email");
-                      if (name && phone && email) setStep(1);
+                      if (name && phone && email) {
+                        setStep(1);
+                      } else {
+                        alert("Please fill in all customer details before continuing");
+                      }
                     }}
                   >
                     Continue to Address
@@ -342,7 +380,11 @@ export default function CheckoutPage() {
                         const city = watch("city");
                         const state = watch("state");
                         const pincode = watch("pincode");
-                        if (address && city && state && pincode) setStep(2);
+                        if (address && city && state && pincode) {
+                          setStep(2);
+                        } else {
+                          alert("Please fill in all address details before continuing");
+                        }
                       }}
                     >
                       Continue to Payment
@@ -359,20 +401,22 @@ export default function CheckoutPage() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
+                  className="space-y-5"
                 >
-                  <h2 className="font-heading text-lg font-bold">Payment Method</h2>
+                  <h2 className="font-heading text-lg font-bold">Select Payment Method</h2>
+                  
                   <div className="space-y-3">
                     {[
-                      { value: "cod", label: "Cash on Delivery", desc: "Pay when you receive", icon: Banknote },
-                      { value: "upi", label: "UPI", desc: "GPay, PhonePe, Paytm & more", icon: Wallet },
-                      { value: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, Amex", icon: CreditCard },
+                      { value: "upi", label: "UPI (Instant 5% Off)", desc: "GPay, PhonePe, Paytm, BHIM & QR Code", icon: Wallet, badge: "Popular" },
+                      { value: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay, Amex", icon: CreditCard },
+                      { value: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives at doorstep", icon: Banknote },
                     ].map((method) => (
-                      <label
+                      <div
                         key={method.value}
-                        className={`flex cursor-pointer items-center gap-3 rounded-[16px] border-2 p-4 transition-colors ${
-                          watch("paymentMethod") === method.value
-                            ? "border-gold bg-gold/5"
+                        onClick={() => setValue("paymentMethod", method.value as any)}
+                        className={`flex cursor-pointer items-center gap-3 rounded-[18px] border-2 p-4 transition-all ${
+                          paymentMethod === method.value
+                            ? "border-gold bg-gold/5 shadow-sm"
                             : "border-ink/10 hover:border-ink/30"
                         }`}
                       >
@@ -382,46 +426,151 @@ export default function CheckoutPage() {
                           {...register("paymentMethod")}
                           value={method.value}
                         />
-                        <method.icon className="h-5 w-5 text-gold-dark" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold-dark">
+                          <method.icon className="h-5 w-5" />
+                        </div>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold">{method.label}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-ink">{method.label}</p>
+                            {method.badge && (
+                              <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
+                                {method.badge}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted">{method.desc}</p>
                         </div>
                         <div
                           className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                            watch("paymentMethod") === method.value
-                              ? "border-gold"
+                            paymentMethod === method.value
+                              ? "border-gold bg-gold"
                               : "border-ink/20"
                           }`}
                         >
-                          {watch("paymentMethod") === method.value && (
-                            <div className="h-2.5 w-2.5 rounded-full bg-gold" />
+                          {paymentMethod === method.value && (
+                            <Check className="h-3.5 w-3.5 text-ink" />
                           )}
                         </div>
-                      </label>
+                      </div>
                     ))}
                   </div>
 
-                  {watch("paymentMethod") === "upi" && (
-                    <Input placeholder="Enter UPI ID (e.g. name@bank)" className="mt-2" />
-                  )}
-                  {watch("paymentMethod") === "card" && (
-                    <div className="space-y-3 rounded-[16px] bg-cream p-4">
-                      <Input placeholder="Card Number" />
-                      <div className="grid grid-cols-2 gap-3">
-                        <Input placeholder="MM/YY" />
-                        <Input placeholder="CVV" type="password" />
+                  {/* UPI Details Box */}
+                  {paymentMethod === "upi" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-4 rounded-[20px] border border-gold/30 bg-gold/5 p-5"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wider text-gold-dark">
+                        Select your UPI App or enter VPA
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {UPI_APPS.map((app) => (
+                          <button
+                            key={app.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedUpiApp(app.id);
+                              setValue("upiApp", app.id);
+                              const phoneVal = watch("phone");
+                              if (phoneVal) setValue("upiId", `${phoneVal}@upi`);
+                            }}
+                            className={`flex items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition-all ${
+                              selectedUpiApp === app.id
+                                ? `${app.color} ring-2 ring-gold`
+                                : "border-ink/10 bg-white text-ink hover:bg-cream"
+                            }`}
+                          >
+                            <Smartphone className="h-3.5 w-3.5" />
+                            {app.name}
+                          </button>
+                        ))}
                       </div>
-                      <Input placeholder="Name on Card" />
-                    </div>
+
+                      <div>
+                        <Label htmlFor="upiId" className="text-xs">
+                          Or Enter UPI ID / VPA
+                        </Label>
+                        <Input
+                          id="upiId"
+                          {...register("upiId")}
+                          placeholder="e.g. yourname@okicici or mobile@upi"
+                          className="mt-1 bg-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-xl bg-white p-3 border border-ink/10">
+                        <div className="flex items-center gap-2">
+                          <QrCode className="h-5 w-5 text-gold-dark" />
+                          <span className="text-xs font-semibold">Instant QR Code Payment</span>
+                        </div>
+                        <span className="text-xs text-success font-bold">Fastest</span>
+                      </div>
+                    </motion.div>
                   )}
 
-                  <div className="flex items-center gap-2 rounded-[12px] bg-success/10 px-4 py-2.5 text-xs text-success">
-                    <ShieldCheck className="h-4 w-4" />
-                    Your payment is secure and encrypted
+                  {/* Card Details Box */}
+                  {paymentMethod === "card" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-3 rounded-[20px] border border-ink/10 bg-cream p-5"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                        Credit / Debit Card Details
+                      </p>
+                      <div>
+                        <Label htmlFor="cardNumber" className="text-xs">Card Number</Label>
+                        <Input
+                          id="cardNumber"
+                          {...register("cardNumber")}
+                          placeholder="4532 •••• •••• 8910"
+                          maxLength={19}
+                          className="mt-1 bg-white font-mono text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor="cardExpiry" className="text-xs">Expiry Date</Label>
+                          <Input
+                            id="cardExpiry"
+                            {...register("cardExpiry")}
+                            placeholder="MM / YY"
+                            maxLength={5}
+                            className="mt-1 bg-white text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="cardCvv" className="text-xs">CVV</Label>
+                          <Input
+                            id="cardCvv"
+                            type="password"
+                            {...register("cardCvv")}
+                            placeholder="123"
+                            maxLength={4}
+                            className="mt-1 bg-white text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="cardName" className="text-xs">Name on Card</Label>
+                        <Input
+                          id="cardName"
+                          {...register("cardName")}
+                          placeholder="As printed on card"
+                          className="mt-1 bg-white text-sm"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <div className="flex items-center gap-2 rounded-[12px] bg-success/10 px-4 py-3 text-xs font-medium text-success">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <span>256-bit SSL Encrypted • 100% Safe & Secure Payment</span>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -436,15 +585,15 @@ export default function CheckoutPage() {
                       type="submit"
                       variant="gold"
                       size="lg"
-                      className="flex-1"
+                      className="flex-1 font-bold"
                       disabled={placing}
                     >
                       {placing ? (
-                        "Placing Order..."
+                        "Processing Order..."
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
-                          Place Order • {formatINR(total)}
+                          Pay & Place Order • {formatINR(total)}
                         </>
                       )}
                     </Button>
@@ -456,11 +605,11 @@ export default function CheckoutPage() {
 
           {/* Order summary */}
           <div className="lg:sticky lg:top-28 lg:self-start">
-            <div className="rounded-[24px] border border-ink/10 bg-white p-6">
+            <div className="rounded-[24px] border border-ink/10 bg-white p-6 shadow-soft">
               <h2 className="font-heading text-lg font-bold">Order Summary</h2>
 
               {/* Items */}
-              <div className="mt-4 max-h-64 space-y-3 overflow-y-auto">
+              <div className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1 no-scrollbar">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-beige">
@@ -532,7 +681,7 @@ export default function CheckoutPage() {
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                       placeholder="Coupon code"
-                      className="h-10"
+                      className="h-10 text-sm"
                     />
                     <Button
                       type="button"
