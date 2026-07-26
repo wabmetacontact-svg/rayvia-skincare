@@ -145,37 +145,15 @@ export default function CheckoutPage() {
   const processOrderPlacement = async (checkoutData: CheckoutForm) => {
     setPlacing(true);
     try {
-      // 1. Cash on Delivery
-      if (checkoutData.paymentMethod === "cod") {
-        const res = await fetch("/api/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...checkoutData,
-            items,
-            subtotal,
-            discount,
-            shipping,
-            total,
-            couponCode: coupon?.code,
-          }),
-        });
-        const result = await res.json();
-        if (res.ok && result.success) {
-          clearCart();
-          router.push(`/order-success?orderId=${result.order.orderId}`);
-        } else {
-          alert(result.error || "Failed to place order");
-        }
-        return;
-      }
+      const isCod = checkoutData.paymentMethod === "cod";
+      const chargeAmount = isCod ? Math.min(total, 99) : total;
 
-      // 2. Online Payment via Razorpay (UPI / Card)
+      // Online Payment via Razorpay Gateway (UPI / Card / COD Advance)
       const resOrder = await fetch("/api/razorpay/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: total,
+          amount: chargeAmount,
           receipt: `rcpt_${Date.now()}`,
           checkoutData: {
             ...checkoutData,
@@ -236,7 +214,9 @@ export default function CheckoutPage() {
         amount: orderData.amount,
         currency: orderData.currency,
         name: SITE.name,
-        description: `Order Payment for ${items.length} item(s)`,
+        description: isCod
+          ? `COD Advance Token Payment (₹${Math.min(total, 99)})`
+          : `Order Payment for ${items.length} item(s)`,
         order_id: orderData.id,
         prefill: {
           name: checkoutData.customerName,
@@ -288,9 +268,14 @@ export default function CheckoutPage() {
             const res = await fetch(`/api/orders/${orderData.websiteOrderId}`);
             if (res.ok) {
               const data = await res.json();
-              if (data?.order?.paymentStatus === "paid") {
+              if (
+                data?.order?.paymentStatus === "paid" ||
+                data?.order?.paymentStatus === "advance_paid"
+              ) {
                 clearInterval(pollInterval);
-                try { razorpayWindow.close(); } catch {}
+                try {
+                  razorpayWindow.close();
+                } catch {}
                 clearCart();
                 router.push(`/order-success?orderId=${orderData.websiteOrderId}`);
               }
@@ -546,12 +531,29 @@ export default function CheckoutPage() {
                   className="space-y-5"
                 >
                   <h2 className="font-heading text-lg font-bold">Select Payment Method</h2>
-                  
+
                   <div className="space-y-3">
                     {[
-                      { value: "upi", label: "Razorpay UPI (Fastest)", desc: "GPay, PhonePe, Paytm, BHIM & QR Code", icon: Wallet, badge: "Popular" },
-                      { value: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay, Amex via Razorpay", icon: CreditCard },
-                      { value: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives at doorstep", icon: Banknote },
+                      {
+                        value: "upi",
+                        label: "Razorpay UPI (Fastest)",
+                        desc: "GPay, PhonePe, Paytm, BHIM & QR Code",
+                        icon: Wallet,
+                        badge: "Popular",
+                      },
+                      {
+                        value: "card",
+                        label: "Credit / Debit Card",
+                        desc: "Visa, Mastercard, RuPay, Amex via Razorpay",
+                        icon: CreditCard,
+                      },
+                      {
+                        value: "cod",
+                        label: "Cash on Delivery (Partial Advance)",
+                        desc: "Pay ₹99 advance to confirm COD order, balance on delivery",
+                        icon: Banknote,
+                        badge: "₹99 Advance",
+                      },
                     ].map((method) => (
                       <div
                         key={method.value}
@@ -596,6 +598,39 @@ export default function CheckoutPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* COD Advance Payment Box */}
+                  {paymentMethod === "cod" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-3 rounded-[20px] border border-amber-300 bg-amber-50/80 p-5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold text-sm">
+                          ₹99
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                            Cash on Delivery Advance Policy
+                          </p>
+                          <p className="text-xs text-amber-900 mt-0.5">
+                            To confirm your COD order & prevent delivery failures, an advance token payment of <strong>{formatINR(Math.min(total, 99))}</strong> is required.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-white p-3.5 border border-amber-200 text-xs space-y-1.5 text-ink">
+                        <div className="flex justify-between">
+                          <span className="text-muted">Advance Online Payment:</span>
+                          <span className="font-bold text-gold-dark">{formatINR(Math.min(total, 99))}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-amber-100 pt-1.5">
+                          <span className="text-muted">Balance Cash on Delivery:</span>
+                          <span className="font-bold text-ink">{formatINR(Math.max(0, total - Math.min(total, 99)))}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* UPI Details Box */}
                   {paymentMethod === "upi" && (
@@ -732,6 +767,11 @@ export default function CheckoutPage() {
                     >
                       {placing ? (
                         "Opening Razorpay Gateway..."
+                      ) : paymentMethod === "cod" ? (
+                        <>
+                          <Lock className="h-4 w-4" />
+                          Pay {formatINR(Math.min(total, 99))} & Confirm COD Order
+                        </>
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />

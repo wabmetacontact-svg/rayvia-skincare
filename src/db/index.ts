@@ -106,6 +106,7 @@ function initDb() {
               coupon_code VARCHAR(40),
               payment_method VARCHAR(40) NOT NULL,
               payment_status VARCHAR(40) NOT NULL DEFAULT 'pending',
+              advance_amount NUMERIC(10, 2) NOT NULL DEFAULT '0',
               status VARCHAR(40) NOT NULL DEFAULT 'placed',
               tracking_number VARCHAR(60),
               courier_name VARCHAR(80),
@@ -117,6 +118,7 @@ function initDb() {
 
             ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(64);
             ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS advance_amount NUMERIC(10, 2) NOT NULL DEFAULT '0';
 
             CREATE INDEX IF NOT EXISTS orders_order_id_idx ON orders (order_id);
             CREATE INDEX IF NOT EXISTS orders_phone_idx ON orders (phone);

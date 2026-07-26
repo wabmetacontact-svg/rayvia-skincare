@@ -21,8 +21,15 @@ export async function POST(req: Request) {
 
     const isMock = keyId === "rzp_test_demo12345" || !process.env.RAZORPAY_KEY_SECRET;
 
+    let targetAmount = Number(amount || 0);
+    const isCod = checkoutData?.paymentMethod === "cod";
+    const advanceAmount = isCod ? Math.min(targetAmount > 0 ? targetAmount : 99, 99) : 0;
+    if (isCod) {
+      targetAmount = advanceAmount;
+    }
+
     let razorpayOrderId = `order_mock_${Date.now()}`;
-    let orderAmount = Math.round(Number(amount || 0) * 100);
+    let orderAmount = Math.round(targetAmount * 100);
 
     if (!isMock) {
       const instance = new Razorpay({
@@ -63,6 +70,9 @@ export async function POST(req: Request) {
           paymentMethod = "upi",
         } = checkoutData;
 
+        const effectivePaymentMethod = paymentMethod === "cod" ? "cod" : paymentMethod;
+        const totalVal = String(total || amount || 0);
+
         await db.insert(orders).values({
           orderId: websiteOrderId,
           customerName: customerName || "Customer",
@@ -76,10 +86,11 @@ export async function POST(req: Request) {
           subtotal: String(subtotal || 0),
           discount: String(discount ?? 0),
           shipping: String(shipping ?? 0),
-          total: String(total || amount || 0),
+          total: totalVal,
           couponCode: couponCode || null,
-          paymentMethod: paymentMethod === "cod" ? "cod" : `razorpay_${paymentMethod}`,
+          paymentMethod: effectivePaymentMethod,
           paymentStatus: "pending",
+          advanceAmount: String(isCod ? advanceAmount : 0),
           status: "pending_payment",
           trackingNumber,
           courierName: "Delhivery Express",

@@ -54,6 +54,7 @@ export const orders = pgTable(
     couponCode: varchar("coupon_code", { length: 40 }),
     paymentMethod: varchar("payment_method", { length: 40 }).notNull(),
     paymentStatus: varchar("payment_status", { length: 40 }).notNull().default("pending"),
+    advanceAmount: numeric("advance_amount", { precision: 10, scale: 2 }).notNull().default("0"),
     status: varchar("status", { length: 40 }).notNull().default("placed"),
     trackingNumber: varchar("tracking_number", { length: 60 }),
     courierName: varchar("courier_name", { length: 80 }),

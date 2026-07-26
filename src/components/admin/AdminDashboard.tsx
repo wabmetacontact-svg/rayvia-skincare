@@ -43,8 +43,10 @@ type OrderRow = {
   phone: string;
   email: string;
   total: string;
-  status: string;
+  paymentMethod: string;
   paymentStatus: string;
+  advanceAmount?: string | null;
+  status: string;
   trackingNumber: string | null;
   courierName: string | null;
   createdAt: string;
@@ -360,7 +362,6 @@ export function AdminDashboard() {
       setProductForm((prev) => ({
         ...prev,
         image: data.url,
-        // If gallery is empty or same as default, also include this image in gallery
         gallery: prev.gallery ? prev.gallery : data.url,
       }));
       setMessage("Main image uploaded successfully.");
@@ -511,7 +512,7 @@ export function AdminDashboard() {
     const q = orderSearch.toLowerCase();
     if (!q) return orders;
     return orders.filter((o) =>
-      [o.orderId, o.customerName, o.phone, o.email, o.status]
+      [o.orderId, o.customerName, o.phone, o.email, o.status, o.paymentMethod, o.paymentStatus]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -864,25 +865,101 @@ export function AdminDashboard() {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted">
-                  <tr><th className="py-2">Order</th><th>Customer</th><th>Phone</th><th>Total</th><th>Status</th><th>Payment</th><th>Tracking</th><th>Update</th></tr>
+                  <tr>
+                    <th className="py-2">Order</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Total</th>
+                    <th>Payment Type</th>
+                    <th>Payment Status</th>
+                    <th>Order Status</th>
+                    <th>Tracking</th>
+                    <th>Update</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((o) => (
-                    <tr key={o.id} className="border-t border-ink/10 align-top">
-                      <td className="py-3 font-semibold">{o.orderId}<br /><span className="text-xs font-normal text-muted">{formatDate(o.createdAt)}</span></td>
-                      <td>{o.customerName}<br /><span className="text-xs text-muted">{o.email}</span></td>
-                      <td>{o.phone}</td>
-                      <td>{formatINR(o.total)}</td>
-                      <td><Badge variant="soft">{o.status}</Badge></td>
-                      <td><Badge variant={o.paymentStatus === "paid" ? "success" : "outline"}>{o.paymentStatus}</Badge></td>
-                      <td>{o.trackingNumber ?? "—"}<br /><span className="text-xs text-muted">{o.courierName ?? "—"}</span></td>
-                      <td>
-                        <select value={o.status} onChange={(e) => updateOrder(o, e.target.value)} className="rounded-[12px] border border-ink/15 bg-white px-3 py-2">
-                          {ORDER_STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredOrders.map((o) => {
+                    const isCod = o.paymentMethod === "cod";
+                    const isUpi = o.paymentMethod === "upi" || o.paymentMethod === "razorpay_upi";
+                    const isCard = o.paymentMethod === "card" || o.paymentMethod === "razorpay_card";
+                    const advAmt = Number(o.advanceAmount || (isCod ? 99 : 0));
+                    const totAmt = Number(o.total || 0);
+                    const dueAmt = Math.max(0, totAmt - advAmt);
+
+                    return (
+                      <tr key={o.id} className="border-t border-ink/10 align-top">
+                        <td className="py-3 font-semibold">
+                          {o.orderId}
+                          <br />
+                          <span className="text-xs font-normal text-muted">{formatDate(o.createdAt)}</span>
+                        </td>
+                        <td>
+                          {o.customerName}
+                          <br />
+                          <span className="text-xs text-muted">{o.email}</span>
+                        </td>
+                        <td>{o.phone}</td>
+                        <td className="font-semibold">{formatINR(o.total)}</td>
+                        <td>
+                          {isCod ? (
+                            <div>
+                              <Badge variant="gold">COD (Partial)</Badge>
+                              <p className="mt-1 text-[11px] font-medium text-amber-700">
+                                Paid: {formatINR(advAmt)}
+                              </p>
+                              <p className="text-[11px] font-bold text-ink">
+                                Due: {formatINR(dueAmt)}
+                              </p>
+                            </div>
+                          ) : isUpi ? (
+                            <div>
+                              <Badge variant="success">UPI</Badge>
+                              <p className="mt-0.5 text-[11px] text-muted">Razorpay Online</p>
+                            </div>
+                          ) : isCard ? (
+                            <div>
+                              <Badge variant="soft">CARD</Badge>
+                              <p className="mt-0.5 text-[11px] text-muted">Razorpay Online</p>
+                            </div>
+                          ) : (
+                            <div>
+                              <Badge variant="outline">{o.paymentMethod?.toUpperCase() || "ONLINE"}</Badge>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {o.paymentStatus === "advance_paid" ? (
+                            <Badge variant="gold">₹99 Advance Paid</Badge>
+                          ) : o.paymentStatus === "paid" ? (
+                            <Badge variant="success">Fully Paid</Badge>
+                          ) : (
+                            <Badge variant="outline">{o.paymentStatus}</Badge>
+                          )}
+                        </td>
+                        <td>
+                          <Badge variant="soft">{o.status}</Badge>
+                        </td>
+                        <td>
+                          {o.trackingNumber ?? "—"}
+                          <br />
+                          <span className="text-xs text-muted">{o.courierName ?? "—"}</span>
+                        </td>
+                        <td>
+                          <select
+                            value={o.status}
+                            onChange={(e) => updateOrder(o, e.target.value)}
+                            className="rounded-[12px] border border-ink/15 bg-white px-3 py-2 text-xs font-medium"
+                          >
+                            {ORDER_STATUSES.map((s) => (
+                              <option key={s.key} value={s.key}>
+                                {s.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

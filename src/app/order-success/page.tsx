@@ -35,6 +35,7 @@ type OrderData = {
   couponCode: string | null;
   paymentMethod: string;
   paymentStatus: string;
+  advanceAmount?: number | string | null;
   status: string;
   trackingNumber: string;
   courierName: string;
@@ -214,17 +215,39 @@ function OrderSuccessContent() {
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-ink/10 pt-3">
-                <span className="font-heading text-base font-bold">Total Paid</span>
+                <span className="font-heading text-base font-bold">Total Order Amount</span>
                 <span className="font-heading text-xl font-bold">{formatINR(order.total)}</span>
               </div>
-              <div className="flex justify-between text-xs text-muted">
+
+              {order.paymentMethod === "cod" ? (
+                <div className="rounded-xl bg-amber-50 p-3 border border-amber-200 space-y-1.5 mt-2">
+                  <div className="flex justify-between text-xs text-amber-900">
+                    <span>Advance Token Paid Online:</span>
+                    <span className="font-bold text-gold-dark">
+                      {formatINR(Number(order.advanceAmount || 99))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs font-bold text-ink border-t border-amber-200/60 pt-1.5">
+                    <span>Cash Due Upon Delivery:</span>
+                    <span className="text-amber-950">
+                      {formatINR(Math.max(0, Number(order.total) - Number(order.advanceAmount || 99)))}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex justify-between text-xs text-muted pt-1">
                 <span>Payment Method</span>
-                <span className="uppercase">{order.paymentMethod}</span>
+                <span className="font-semibold uppercase">
+                  {order.paymentMethod === "cod" ? "Cash on Delivery (Partial COD)" : order.paymentMethod}
+                </span>
               </div>
               <div className="flex justify-between text-xs text-muted">
                 <span>Payment Status</span>
                 <span className="font-semibold capitalize text-success">
-                  {order.paymentStatus}
+                  {order.paymentStatus === "advance_paid"
+                    ? "₹99 Advance Paid"
+                    : order.paymentStatus}
                 </span>
               </div>
             </div>

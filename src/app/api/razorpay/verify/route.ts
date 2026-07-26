@@ -49,10 +49,11 @@ export async function POST(req: Request) {
     }
 
     if (existingOrder) {
+      const isExistingCod = existingOrder.paymentMethod === "cod";
       const [updated] = await db
         .update(orders)
         .set({
-          paymentStatus: "paid",
+          paymentStatus: isExistingCod ? "advance_paid" : "paid",
           status: "placed",
           razorpayPaymentId: razorpay_payment_id || existingOrder.razorpayPaymentId,
         })
@@ -89,6 +90,12 @@ export async function POST(req: Request) {
     const trackingNumber = generateTrackingNumber();
     const estDelivery = estimatedDeliveryDate(5);
 
+    const isCod = paymentMethod === "cod";
+    const totalNum = Number(total || 0);
+    const advanceAmountVal = isCod ? Math.min(totalNum > 0 ? totalNum : 99, 99) : 0;
+    const effectivePaymentMethod = isCod ? "cod" : paymentMethod;
+    const effectivePaymentStatus = isCod ? "advance_paid" : "paid";
+
     const [createdOrder] = await db
       .insert(orders)
       .values({
@@ -106,8 +113,9 @@ export async function POST(req: Request) {
         shipping: String(shipping ?? 0),
         total: String(total || 0),
         couponCode: couponCode || null,
-        paymentMethod: paymentMethod === "cod" ? "cod" : `razorpay_${paymentMethod}`,
-        paymentStatus: paymentMethod === "cod" ? "pending" : "paid",
+        paymentMethod: effectivePaymentMethod,
+        paymentStatus: effectivePaymentStatus,
+        advanceAmount: String(advanceAmountVal),
         status: "placed",
         trackingNumber,
         courierName: "Delhivery Express",

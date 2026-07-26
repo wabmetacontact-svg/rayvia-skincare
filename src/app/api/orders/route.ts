@@ -36,6 +36,10 @@ export async function POST(req: Request) {
     const trackingNumber = generateTrackingNumber();
     const estDelivery = estimatedDeliveryDate(5);
 
+    const isCod = paymentMethod === "cod";
+    const totalNum = Number(total || 0);
+    const advanceAmountVal = isCod ? Math.min(totalNum > 0 ? totalNum : 99, 99) : 0;
+
     const [order] = await db
       .insert(orders)
       .values({
@@ -53,8 +57,9 @@ export async function POST(req: Request) {
         shipping: String(shipping ?? 0),
         total: String(total),
         couponCode: couponCode || null,
-        paymentMethod,
-        paymentStatus: paymentMethod === "cod" ? "pending" : "paid",
+        paymentMethod: paymentMethod || "cod",
+        paymentStatus: isCod ? "advance_paid" : "paid",
+        advanceAmount: String(advanceAmountVal),
         status: "placed",
         trackingNumber,
         courierName: "Delhivery Express",
