@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureDbInitialized } from "@/db";
 import { orders, products, coupons, reviews, newsletter } from "@/db/schema";
 import { isAdminRequest, unauthorized } from "@/lib/admin-auth";
 import { desc, sql } from "drizzle-orm";
@@ -16,6 +16,13 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 
 export async function GET(req: Request) {
   if (!isAdminRequest(req)) return unauthorized();
+  await ensureDbInitialized();
+
+  try {
+    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS advance_amount NUMERIC(10, 2) NOT NULL DEFAULT '0';`);
+    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(64);`);
+    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(64);`);
+  } catch {}
 
   const productCount = await safeQuery(
     () => db.select({ count: sql<number>`count(*)` }).from(products),

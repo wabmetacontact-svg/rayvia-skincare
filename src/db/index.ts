@@ -47,6 +47,16 @@ function initDb() {
 
     let pgliteClient: PGlite;
     try {
+      if (typeof window === "undefined" && !isVercel) {
+        try {
+          const fs = require("fs");
+          const path = require("path");
+          const pidPath = path.join(process.cwd(), "local-db", "postmaster.pid");
+          if (fs.existsSync(pidPath)) {
+            fs.unlinkSync(pidPath);
+          }
+        } catch {}
+      }
       pgliteClient = globalForDb.__rayviaPglite ?? new PGlite(pgliteTarget);
     } catch {
       pgliteClient = new PGlite("memory://");

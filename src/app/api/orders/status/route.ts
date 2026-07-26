@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureDbInitialized } from "@/db";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ORDER_STATUSES, type OrderStatusKey } from "@/lib/utils";
