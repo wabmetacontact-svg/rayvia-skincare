@@ -1,13 +1,22 @@
-import { ShieldCheck, Truck, Leaf, RefreshCw } from "lucide-react";
+"use client";
 
-const BADGES = [
-  { icon: ShieldCheck, title: "Dermatologically Tested", desc: "Safe for all skin types" },
-  { icon: Truck, title: "Free Shipping", desc: "On orders above ₹499" },
-  { icon: Leaf, title: "Cruelty-Free & Vegan", desc: "Never tested on animals" },
-  { icon: RefreshCw, title: "7-Day Returns", desc: "Hassle-free returns" },
-];
+import { ShieldCheck, Truck, Leaf, RefreshCw } from "lucide-react";
+import { useSettings } from "@/context/SettingsContext";
 
 export function TrustBadges() {
+  const { freeShippingAbove } = useSettings();
+
+  const freeShippingDesc = freeShippingAbove === 0
+    ? "On all orders"
+    : `On orders above ₹${freeShippingAbove}`;
+
+  const BADGES = [
+    { icon: ShieldCheck, title: "Dermatologically Tested", desc: "Safe for all skin types" },
+    { icon: Truck, title: "Free Shipping", desc: freeShippingDesc },
+    { icon: Leaf, title: "Cruelty-Free & Vegan", desc: "Never tested on animals" },
+    { icon: RefreshCw, title: "7-Day Returns", desc: "Hassle-free returns" },
+  ];
+
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {BADGES.map(({ icon: Icon, title, desc }) => (

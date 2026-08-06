@@ -25,6 +25,7 @@ import {
   X,
   Image as ImageIcon,
   Loader2,
+  Settings,
 } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatINR, ORDER_STATUSES } from "@/lib/utils";
+import { useSettings } from "@/context/SettingsContext";
 
-type AdminTab = "overview" | "products" | "orders" | "coupons" | "reviews" | "newsletter";
+type AdminTab = "overview" | "products" | "orders" | "coupons" | "reviews" | "newsletter" | "settings";
 
 type OrderRow = {
   id: number;
@@ -196,6 +198,7 @@ const tabs: { key: AdminTab; label: string; icon: typeof BarChart3 }[] = [
   { key: "coupons", label: "Coupons", icon: Tag },
   { key: "reviews", label: "Reviews", icon: Star },
   { key: "newsletter", label: "Newsletter", icon: Mail },
+  { key: "settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminDashboard() {
@@ -217,7 +220,9 @@ export function AdminDashboard() {
   const [subscribers, setSubscribers] = useState<SubscriberRow[]>([]);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [couponForm, setCouponForm] = useState<CouponForm>(emptyCoupon);
+  const [settingsForm, setSettingsForm] = useState({ freeShippingAbove: "499", flatShippingFee: "49" });
   const [orderSearch, setOrderSearch] = useState("");
+  const { refreshSettings } = useSettings();
 
   useEffect(() => {
     sessionStorage.removeItem("rayvia-admin-pin");
@@ -260,11 +265,12 @@ export function AdminDashboard() {
     setLoading(true);
     setMessage("");
     try {
-      const [overview, productData, orderData, couponData] = await Promise.all([
+      const [overview, productData, orderData, couponData, settingsData] = await Promise.all([
         request("/api/admin/overview"),
         request("/api/admin/products"),
         request("/api/admin/orders"),
         request("/api/admin/coupons"),
+        request("/api/admin/settings").catch(() => null),
       ]);
       setStats(overview.stats);
       setReviews(overview.latestReviews ?? []);
@@ -272,6 +278,12 @@ export function AdminDashboard() {
       setProducts(productData.products ?? []);
       setOrders(orderData.orders ?? []);
       setCoupons(couponData.coupons ?? []);
+      if (settingsData) {
+        setSettingsForm({
+          freeShippingAbove: String(settingsData.freeShippingAbove ?? 499),
+          flatShippingFee: String(settingsData.flatShippingFee ?? 49),
+        });
+      }
       setMessage("Admin data refreshed.");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unable to load admin data.";
@@ -1029,6 +1041,92 @@ export function AdminDashboard() {
                   <p className="text-xs text-muted">{formatDate(s.createdAt)}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "settings" && (
+          <div className="mt-6 space-y-6">
+            <div className="rounded-[20px] border border-ink/10 bg-white p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/15 text-gold-dark">
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-xl font-bold">Shipping & Delivery Configuration</h2>
+                  <p className="text-sm text-muted">Control free shipping threshold and flat shipping rates across your storefront.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <Field label="Free Shipping Minimum Order (₹)">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={settingsForm.freeShippingAbove}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, freeShippingAbove: e.target.value })}
+                    placeholder="e.g. 499 (0 for free shipping on all orders)"
+                  />
+                  <p className="mt-1.5 text-xs text-muted">
+                    Orders with subtotal equal to or higher than this amount get <strong>100% Free Shipping</strong>. Set to <code>0</code> to make all orders free shipping.
+                  </p>
+                </Field>
+
+                <Field label="Standard Flat Shipping Fee (₹)">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={settingsForm.flatShippingFee}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, flatShippingFee: e.target.value })}
+                    placeholder="e.g. 49"
+                  />
+                  <p className="mt-1.5 text-xs text-muted">
+                    Shipping charge applied when order subtotal is less than the free shipping threshold.
+                  </p>
+                </Field>
+              </div>
+
+              <div className="mt-6 rounded-2xl bg-cream p-4 text-sm">
+                <p className="font-semibold text-ink">Live Storefront Preview:</p>
+                <p className="mt-1 text-muted">
+                  {Number(settingsForm.freeShippingAbove) === 0 ? (
+                    <span className="text-success font-medium">✨ All orders receive FREE shipping!</span>
+                  ) : (
+                    <span>
+                      Orders above <strong>₹{settingsForm.freeShippingAbove || "0"}</strong> get <strong>Free Shipping</strong>. Orders below receive a <strong>₹{settingsForm.flatShippingFee || "0"}</strong> shipping fee.
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button
+                  variant="gold"
+                  disabled={loading}
+                  onClick={async () => {
+                    setLoading(true);
+                    setMessage("");
+                    try {
+                      await request("/api/admin/settings", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          freeShippingAbove: Number(settingsForm.freeShippingAbove),
+                          flatShippingFee: Number(settingsForm.flatShippingFee),
+                        }),
+                      });
+                      await refreshSettings();
+                      setMessage("Shipping settings updated successfully!");
+                    } catch (err) {
+                      setMessage(err instanceof Error ? err.message : "Failed to update settings.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Shipping Settings
+                </Button>
+              </div>
             </div>
           </div>
         )}

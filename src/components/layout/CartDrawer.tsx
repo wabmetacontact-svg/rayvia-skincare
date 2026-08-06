@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Minus, Plus, Trash2, Tag, ShoppingBag, ArrowRight, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from "@/context/SettingsContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,18 +26,19 @@ export function CartDrawer() {
     applyCoupon,
     removeCoupon,
   } = useCart();
+  const { freeShippingAbove, flatShippingFee } = useSettings();
 
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const remainingForFreeShip = Math.max(0, SITE.freeShippingAbove - subtotal);
-  const freeShipProgress = Math.min(100, (subtotal / SITE.freeShippingAbove) * 100);
+  const remainingForFreeShip = Math.max(0, freeShippingAbove - subtotal);
+  const freeShipProgress = freeShippingAbove > 0 ? Math.min(100, (subtotal / freeShippingAbove) * 100) : 100;
 
   const productShippingTotal = items.reduce((sum, i) => sum + Number(i.shippingCharge ?? 0) * i.quantity, 0);
   const shippingFee = productShippingTotal > 0
     ? productShippingTotal
-    : (remainingForFreeShip > 0 && subtotal > 0 ? 49 : 0);
+    : (subtotal > 0 && remainingForFreeShip > 0 ? flatShippingFee : 0);
 
   const handleApplyCoupon = async () => {
     if (!code.trim()) return;

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from "@/context/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/product/StarRating";
@@ -23,8 +24,14 @@ import { formatINR, discountPercent } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
 
 export function ProductInfo({ product }: { product: Product }) {
-  const { addItem } = useCart();
   const [qty, setQty] = useState(1);
+  const { addItem } = useCart();
+  const { freeShippingAbove } = useSettings();
+
+  const freeShippingSubText = freeShippingAbove === 0 ? "All orders" : `Above ₹${freeShippingAbove}`;
+  const freeShippingBannerText = freeShippingAbove === 0
+    ? "Free shipping on all orders"
+    : `Free shipping above ₹${freeShippingAbove}`;
   const off = discountPercent(product.price, product.mrp);
 
   return (
@@ -130,7 +137,7 @@ export function ProductInfo({ product }: { product: Product }) {
       {/* Trust badges */}
       <div className="mt-6 grid grid-cols-3 gap-3">
         {[
-          { icon: Truck, label: "Free Shipping", sub: `Above ₹${SITE.freeShippingAbove}` },
+          { icon: Truck, label: "Free Shipping", sub: freeShippingSubText },
           { icon: RefreshCw, label: "7-Day Returns", sub: "Easy returns" },
           { icon: ShieldCheck, label: "Dermatologically Tested", sub: "Safe & gentle" },
         ].map(({ icon: Icon, label, sub }) => (
@@ -148,7 +155,7 @@ export function ProductInfo({ product }: { product: Product }) {
       {/* Delivery estimate */}
       <div className="mt-4 flex items-center gap-2 rounded-2xl bg-beige p-3 text-sm text-ink-soft">
         <Truck className="h-4 w-4 text-gold-dark" />
-        Get it in {SITE.shippingDays} business days • Free shipping above ₹{SITE.freeShippingAbove}
+        Get it in {SITE.shippingDays} business days • {freeShippingBannerText}
       </div>
     </div>
   );

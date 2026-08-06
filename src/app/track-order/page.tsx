@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Reveal } from "@/components/Reveal";
 import { formatINR, formatDate, ORDER_STATUSES } from "@/lib/utils";
+import { useSettings } from "@/context/SettingsContext";
 import Link from "next/link";
 
 const ICONS: Record<string, typeof Package> = {
@@ -49,6 +50,9 @@ type OrderData = {
 };
 
 export default function TrackOrderPage() {
+  const { freeShippingAbove } = useSettings();
+  const freeShippingDesc = freeShippingAbove === 0 ? "On all orders" : `On orders above ₹${freeShippingAbove}`;
+
   const [orderId, setOrderId] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -312,7 +316,7 @@ export default function TrackOrderPage() {
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {[
                 { icon: Clock, title: "Fast Delivery", desc: "3-5 business days" },
-                { icon: Truck, title: "Free Shipping", desc: "On orders above ₹499" },
+                { icon: Truck, title: "Free Shipping", desc: freeShippingDesc },
                 { icon: Package, title: "Secure Packaging", desc: "Damage-free delivery" },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="rounded-[16px] border border-ink/10 bg-white p-5 text-center">

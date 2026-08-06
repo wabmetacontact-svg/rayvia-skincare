@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, Menu, X, Search } from "lucide-react";
 import { NAV_LINKS, SITE } from "@/lib/constants";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from "@/context/SettingsContext";
 import { cn } from "@/lib/utils";
 
-const ANNOUNCEMENTS = [
-  "Free shipping on orders above ₹499",
+const BASE_ANNOUNCEMENTS = [
   "Use code RAYVIA10 for 10% off",
   "Clinically inspired • Dermatologically tested",
   "Cruelty-free • Vegan • Made in India",
@@ -19,6 +19,13 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { totalItems, openCart } = useCart();
+  const { freeShippingAbove } = useSettings();
+
+  const freeShippingText = freeShippingAbove === 0
+    ? "Free shipping on ALL orders!"
+    : `Free shipping on orders above ₹${freeShippingAbove}`;
+
+  const announcements = [freeShippingText, ...BASE_ANNOUNCEMENTS];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -32,7 +39,7 @@ export function Navbar() {
       {/* Announcement marquee */}
       <div className="overflow-hidden bg-ink text-cream">
         <div className="flex w-max animate-marquee py-2">
-          {[...ANNOUNCEMENTS, ...ANNOUNCEMENTS].map((a, i) => (
+          {[...announcements, ...announcements].map((a, i) => (
             <span
               key={i}
               className="mx-8 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.18em] opacity-80"

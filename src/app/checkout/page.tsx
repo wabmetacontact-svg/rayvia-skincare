@@ -25,6 +25,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from "@/context/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +63,7 @@ const UPI_APPS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { freeShippingAbove, flatShippingFee } = useSettings();
   const {
     items,
     subtotal,
@@ -101,7 +103,7 @@ export default function CheckoutPage() {
   const productShippingTotal = items.reduce((sum, i) => sum + Number(i.shippingCharge ?? 0) * i.quantity, 0);
   const shipping = productShippingTotal > 0
     ? productShippingTotal
-    : (subtotal >= SITE.freeShippingAbove || subtotal === 0 ? 0 : 49);
+    : (subtotal >= freeShippingAbove || subtotal === 0 ? 0 : flatShippingFee);
   const total = Math.max(0, subtotal - discount) + shipping;
 
   const loadRazorpayScript = (): Promise<boolean> => {
